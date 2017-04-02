@@ -69,7 +69,7 @@ new(Topic, Status, Payload, Ref)
 
 -spec from_map(map()) -> reply().
 from_map(Map) ->
-  BinKey = fun(K, V, Acc) -> Acc#{ebus_common:to_bin(K) => V} end,
+  BinKey = fun(K, V, Acc) -> maps:put(ebus_common:to_bin(K),V,Acc) end,
   BinMap = maps:fold(BinKey, #{}, Map),
   #{
     topic   => maps:get(<<"topic">>, BinMap, nil),
