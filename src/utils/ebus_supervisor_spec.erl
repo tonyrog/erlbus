@@ -30,7 +30,7 @@
 ) -> {ok, tuple()}.
 supervise(Children, SupFlags) ->
   assert_unique_ids([Id || #{id := Id} <- Children]),
-  {ok, {SupFlags, Children}}.
+  {ok, {sup_flags(SupFlags), Children}}.
 
 %% @equiv supervisor(Module, Args, [])
 supervisor(Module, Args) ->
@@ -115,11 +115,38 @@ assert_unique_ids([Id | Rest]) ->
 
 %% @private
 child(Type, Module, Args, Spec) when is_map(Spec) ->
-  #{
-    id       => maps:get(id, Spec, Module),
-    start    => maps:get(start, Spec, {Module, start_link, Args}),
-    restart  => maps:get(restart, Spec, permanent),
-    shutdown => maps:get(shutdown, Spec, 5000),
-    type     => Type,
-    modules  => maps:get(modules, Spec, [Module])
-  }.
+    Rel = erlang:system_info(compat_rel),
+    Id       = maps:get(id, Spec, Module),
+    Start    = maps:get(start, Spec, {Module, start_link, Args}),
+    Restart  = maps:get(restart, Spec, permanent),
+    Shutdown = maps:get(shutdown, Spec, 5000),
+    Modules  = maps:get(modules, Spec, [Module]),
+    if Rel =< 17 ->
+	    {
+	      Id,
+	      Start,
+	      Restart,
+	      Shutdown,
+	      Type,
+	      Modules };
+       true ->
+	    #{ id       => Id,
+	       start    => Start,
+	       restart  => Restart,
+	       shutdown => Shutdown,
+	       type     => Type,
+	       modules  => Modules
+	     }
+    end.
+
+-spec sup_flags(Map::supervisor:sup_flags()) -> supervisor:sup_flags().
+
+sup_flags(Map) ->
+    Rel = erlang:system_info(compat_rel),
+    if Rel =< 17 ->
+	    {maps:get(strategy, Map, one_for_one),
+	     maps:get(intensity,Map, 1),
+	     maps:get(period, Map, 5)};
+       true ->
+	    Map
+    end.
